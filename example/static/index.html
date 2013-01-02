@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script type="text/javascript">
+      var log;
+      var seed;
+      var profile_endpoint;
+      var profile;
+
+      function Log( element ) {
+        this.element = $( element );
+        this.content = "";
+      }
+
+      Log.prototype.log = function( message ) {
+        this.content += message + "\n";
+        this.element.html( this.content );
+      };
+
+      function post_data( url, data, callback ) {
+        $.ajax( {
+          contentType: 'application/json',
+          url: url,
+          type: 'POST',
+          dataType: 'json',
+          data: JSON.stringify( data ),
+          success: function( data ) {
+            log.log( "POST DATA: " + JSON.stringify( data ) );
+            callback( null, data );
+          },
+          error: function( jqXHR, textStatus, errorThrown ) {
+            log.log( "POST ERR: " + errorThrown.toString() );
+            callback( errorThrown, null );
+          }
+        } );
+      }
+
+      function get_data() {
+        $.getJSON( '/app/simple/012', function( data, textStatus, jqHXR ) {
+          if( 'success' !== textStatus ) { return log.log( "GET ERR: " + textStatus ); }
+          log.log( "GET DATA: " + JSON.stringify( data ) );
+        } );
+      }
+
+      function put_data() {
+        $.ajax( {
+          contentType: 'application/json',
+          url: '/app/simple/301',
+          type: 'PUT',
+          dataType: 'json',
+          data: JSON.stringify( {appid: 15} ),
+          success: function( data ) {
+            log.log( "PUT DATA: " + JSON.stringify( data ) );
+          },
+          error: function( jqXHR, textStatus, errorThrown ) {
+            log.log( "PUT ERR: " + errorThrown.toString() );
+          }
+        } );
+      }
+
+      function delete_data() {
+        $.ajax( {
+          url: '/app/simple/301',
+          type: 'DELETE',
+          dataType: 'json',
+          success: function( data ) {
+            log.log( "DELETE DATA: " + JSON.stringify( data ) );
+          },
+          error: function( jqXHR, textStatus, errorThrown ) {
+            log.log( "DELETE ERR: " + errorThrown.toString() );
+          }
+        } );
+      }
+
+      function options_data() {
+        $.ajax( {
+          url: '/app/simple/130',
+          type: 'OPTIONS',
+          dataType: 'json',
+          success: function( data ) {
+            log.log( "PUT DATA: " + JSON.stringify( data ) );
+          },
+          error: function( jqXHR, textStatus, errorThrown ) {
+            log.log( "PUT ERR: " + errorThrown.toString() );
+          }
+        } );
+      }
+
+      function login() {
+        log.log( 'Logging In..' );
+        post_data( '/app/seed', { username: $('#username').val(), password: $('#password').val() }, function( err, data ) {
+          if( data && data.success ) {
+            seed = data.seed;
+
+            _get_seed();
+          }
+        } );
+
+        function _get_seed () {
+          post_data( seed, { services: [ 'profile' ] }, function( err, data ) {
+            if( data && data.services && data.services.profile ) {
+              profile_endpoint = data.services.profile;
+              $('#getprofile').removeAttr("disabled");
+              $('#putprofile').removeAttr("disabled");
+              getprofile();
+            }
+          } );
+        }
+      }
+
+      function getprofile() {
+        if( profile_endpoint ) {
+          $.getJSON( profile_endpoint, function( data, err ) {
+            if( data ) {
+              log.log( 'PROFILE DATA: ' + JSON.stringify( data ) );
+              profile = data.profile;
+              $('#fullname').val( profile.user.fullname );
+            }
+          } );
+        }
+      }
+
+      function putprofile() {
+        if( profile_endpoint ) {
+          $.ajax( {
+            cache: false,
+            contentType: 'application/json; charset=UTF-8',
+            data: JSON.stringify( { fullname: $('#fullname').val() } ),
+            dataType: 'json',
+            processData: false,
+            success: function () { log.log( 'profile updated' ); },
+            error: function( a, b, c ) { log.log( 'error: ' + b ); },
+            url: profile_endpoint,
+            type: 'PUT'
+          } );
+        }
+      }
+
+      $(document).ready(function() {
+        log = new Log( '#logtown' );
+        log.log( 'Starting webapp..' );
+      });
+    </script>
+  </head>
+  <body>
+    <p>login</p>
+    <input id="username" type="text" placeholder="Username"/>
+    <input id="password" type="password" placeholder="Password"/>
+    <input type="button" onclick="login();" value="login"/><br/>
+    <hr/>
+    <p>profile</p>
+    <input id="fullname" type="text" placeholder="Full Name"/>
+    <input id="getprofile" type="button" onclick="getprofile();" value="get profile" disabled="true"/>
+    <input id="putprofile" type="button" onclick="putprofile();" value="store profile" disabled="true"/>
+    <hr/>
+    <p>log</p>
+    <textarea id="logtown" rows="16" cols="64"></textarea>
+  </body>
+</html>
