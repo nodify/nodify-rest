@@ -8,7 +8,6 @@
   }
 
   _info.prototype.get = function( callback ) {
-    console.log( callback.toString() );
     callback( info );
   };
 

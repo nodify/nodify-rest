@@ -30,41 +30,86 @@
       var path = ic.pathname.split('/').slice(1);
       params.body = request.body;
 
-      var proto = endpoints[ path[0] ];
-      if( ! proto ) {
-        return next( 404 );
-      }
-
-      params.path = path.slice(1);
-      var instance = new proto( params );
-      var method = instance[ request.method.toLowerCase() ];
-      if( ! method ) {
-        return next( 405 );
-      }
-
-      method.apply( instance, [ function( rv ) {
-        var output;
-        var headers = {};
-        
-        switch( typeof rv ) {
-        case 'number':
-          return next( rv );
-        case 'object':
-          output = JSON.stringify( rv );
-          headers[ 'Content-Type' ] = 'application/json';
-          break;
+      if( options.origin ) {
+        var origin_allowed = false;
+        switch( typeof options.origin ) {
         case 'string':
-          output = rv;
-          headers[ 'Content-Type' ] = 'text/plain';
+          origin_allowed = (options.origin === ic.hostname);
+          _complete( origin_allowed );
           break;
-        default:
-          return next( 500 );
+        case 'object':
+          for( var i=0, il=options.origin.length; i < il; i++ ) {
+            origin_allowed = (options.origin[i] === ic.hostname);
+            if( origin_allowed ) {
+              break;
+            }
+          }
+          _complete( origin_allowed );
+          break;
+        case 'function':
+          options.origin( ic.hostname, _complete );
+          break;
+        }
+      } else {
+        _complete( true );
+      }
+
+      function _complete( allowed ) {
+        var verb;
+
+        if( ! allowed ) {
+          return next( 403 );
         }
 
-        headers[ 'Content-Length' ] = output.length;
-        response.writeHead( 200, headers );
-        response.end( output );
-      } ] );
-    };
+        var proto = endpoints[ path[0] ];
+        if( ! proto ) {
+          return next( 404 );
+        }
+
+        params.path = path.slice(1);
+        var instance = new proto( params );
+        verb = request.method.toLowerCase();
+        var method = instance[ verb ];
+        if( ! method ) {
+          if( 'options' !== verb ) {
+            return next( 405 );
+          }
+          _respond( "" );
+        }
+
+        method.apply( instance, [ _respond ] );
+
+        function _respond( rv ) {
+          var output;
+          var headers = {};
+        
+          switch( typeof rv ) {
+          case 'number':
+            return next( rv );
+          case 'object':
+            output = JSON.stringify( rv );
+            headers[ 'Content-Type' ] = 'application/json';
+            break;
+          case 'string':
+            output = rv;
+            headers[ 'Content-Type' ] = 'text/plain';
+            break;
+          default:
+            return next( 500 );
+          }
+
+          if( options.origin ) {
+            headers[ 'Access-Control-Allow-Origin' ] = 'http://' + ic.hostname;
+            if( 'options' === verb ) {
+              headers[ 'Access-Control-Request-Method' ] = verb;
+            }
+          }
+
+          headers[ 'Content-Length' ] = output.length;
+          response.writeHead( 200, headers );
+          response.end( output );
+        };
+      };
+    }
   };
 } ) ( );

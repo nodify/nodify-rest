@@ -16,7 +16,8 @@
       "info": "collection_info",
       "seed": "collection_seed",
       "profile": "collection_profile"
-    }
+    },
+    "origin": [ "localhost" ]
   },
   "static": {
     "path": "static",

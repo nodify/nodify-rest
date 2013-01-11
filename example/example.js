@@ -27,6 +27,11 @@ var _aopts = {
 
 var g;
 var app;
+var statii = {
+  403: "Forbidden",
+  404: "Not Found",
+  500: "Internal Server Error"
+};
 
 props.read( function( properties ) {
   g = properties;
@@ -55,11 +60,24 @@ props.read( function( properties ) {
   if( g.rest ) {
     app.use( g.rest.path, rest( g.rest ) );
   }
-
-  if( g.error ) {
-    app.use( connect.errorHandler( g.error ) );
-  }
   
+  app.use( function( error, request, response, next ) {
+    var output;
+
+    if( statii[ error ] ) {
+      output = statii[ error ];
+    } else {
+      output = String( error );
+      error = 500;
+    }
+
+    response.writeHead( error, {
+      'Content-Type': 'text/plain',
+      'Content-Length': output.length
+    } );
+    response.end( output );
+  } );
+
   if( g.listen && g.listen.port ) {
     app.listen( g.listen.port, g.listen.host );
   }
